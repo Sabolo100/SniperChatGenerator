@@ -53,7 +53,7 @@ def _fmt_progress(done: int, total: int, success: int, errors: int,
 def update_models(provider: str):
     choices = MODELS.get(provider, [])
     value = choices[0] if choices else None
-    return gr.Dropdown(choices=choices, value=value)
+    return gr.update(choices=choices, value=value)
 
 
 def update_estimate(model: str, count: int) -> str:
