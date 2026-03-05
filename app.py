@@ -144,7 +144,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
             break
 
         total_so_far = already_done + i
-        result       = generate_one(provider, api_key, model)
+        result, err_msg = generate_one(provider, api_key, model)
 
         if result:
             conversations.append(result)
@@ -156,7 +156,8 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
         else:
             errors     += 1
             consec_err += 1
-            log_lines.append(f"[HIBA] #{total_so_far + 1} — generálás sikertelen")
+            detail = f" — {err_msg}" if err_msg else ""
+            log_lines.append(f"[HIBA] #{total_so_far + 1}{detail}")
             # last_conv_md intentionally NOT reset — keep last successful one visible
 
         # Save every 10

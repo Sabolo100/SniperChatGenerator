@@ -36,11 +36,40 @@ def estimate_cost(model_name: str, count: int) -> float:
     return count * _AVG_TOKENS_PER_CONV * per_k / 1000
 
 
+# ── Package availability check ────────────────────────────────────────────────
+_INSTALL_HINTS = {
+    "openai":    "pip install openai",
+    "anthropic": "pip install anthropic",
+    "gemini":    "pip install google-genai",
+}
+
+
+def _check_package(provider: str) -> tuple[bool, str]:
+    """Return (True, '') if the provider package is importable, else (False, hint)."""
+    try:
+        if provider == "openai":
+            import openai  # noqa: F401
+        elif provider == "anthropic":
+            import anthropic  # noqa: F401
+        elif provider == "gemini":
+            from google import genai  # noqa: F401
+        else:
+            return False, f"Ismeretlen provider: {provider}"
+        return True, ""
+    except ImportError:
+        hint = _INSTALL_HINTS.get(provider, "")
+        return False, f"Hiányzó csomag a '{provider}' providerhez. Telepítsd: {hint}"
+
+
 # ── Client factory ─────────────────────────────────────────────────────────────
 def get_client(provider: str, api_key: str):
     """Return an initialised API client for the given provider."""
     if not api_key or not api_key.strip():
         raise ValueError("API kulcs hiányzik")
+
+    ok, msg = _check_package(provider)
+    if not ok:
+        raise ImportError(msg)
 
     if provider == "openai":
         from openai import OpenAI
@@ -113,14 +142,14 @@ def _extract_json(text: str) -> dict | None:
 
 
 # ── Single-conversation generator ─────────────────────────────────────────────
-def generate_one(provider: str, api_key: str, model_name: str) -> dict | None:
+def generate_one(provider: str, api_key: str, model_name: str) -> tuple[dict, str] | tuple[None, str]:
     """Generate one training conversation.
 
-    Returns a dict with keys: tema, user_message, assistant_message, generalva.
-    Returns None after 3 failed attempts.
+    Returns (data_dict, "") on success or (None, error_message) on failure.
     """
     prompt = random_prompt()
     backoff_delays = [5, 10, 20]
+    last_error = ""
 
     for attempt in range(3):
         try:
@@ -128,20 +157,25 @@ def generate_one(provider: str, api_key: str, model_name: str) -> dict | None:
             data = _extract_json(raw)
 
             if data is None:
+                last_error = f"Nem sikerült JSON-t kinyerni a válaszból (attempt {attempt+1})"
                 continue
 
             # Validate required fields
             if "user_message" not in data or "assistant_message" not in data:
+                last_error = f"Hiányzó mezők a válaszban (attempt {attempt+1})"
                 continue
 
             data.setdefault("tema", "ismeretlen téma")
             data["generalva"] = datetime.now(timezone.utc).isoformat()
-            return data
+            return data, ""
 
+        except ImportError as exc:
+            return None, f"Hiányzó csomag: {exc}"
         except Exception as exc:
-            err_str = str(exc).lower()
+            last_error = str(exc)
+            err_lower = last_error.lower()
             is_rate_limit = any(
-                kw in err_str
+                kw in err_lower
                 for kw in ("rate limit", "ratelimit", "429", "quota", "resource_exhausted")
             )
             delay = backoff_delays[min(attempt, len(backoff_delays) - 1)]
@@ -150,7 +184,7 @@ def generate_one(provider: str, api_key: str, model_name: str) -> dict | None:
             elif attempt < 2:
                 time.sleep(2)
 
-    return None
+    return None, last_error
 
 
 # ── Provider-specific API calls ────────────────────────────────────────────────
