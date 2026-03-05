@@ -4,6 +4,7 @@ Gradio-based UI for generating fine-tuning data via OpenAI / Anthropic / Gemini.
 Run:  python app.py
 """
 
+import json
 import threading
 import time
 from collections import deque
@@ -83,13 +84,13 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
 
     # Validation
     if not provider:
-        yield "❌ Válassz providert!", "", "", "", {}, "", _NO_FILES
+        yield "❌ Válassz providert!", "", "", "", "", "", _NO_FILES
         return
     if not api_key or not api_key.strip():
-        yield "❌ API kulcs nem adott meg!", "", "", "", {}, "", _NO_FILES
+        yield "❌ API kulcs nem adott meg!", "", "", "", "", "", _NO_FILES
         return
     if not model:
-        yield "❌ Válassz modellt!", "", "", "", {}, "", _NO_FILES
+        yield "❌ Válassz modellt!", "", "", "", "", "", _NO_FILES
         return
 
     # Session folder
@@ -122,7 +123,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
         _fmt_progress(already_done, count, 0, 0, 0.001),
         last_conv_md,
         "\n".join(log_lines),
-        get_stats(conversations),
+        json.dumps(get_stats(conversations), indent=2, ensure_ascii=False),
         session_dir,
         _NO_FILES,
     )
@@ -133,7 +134,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
             _fmt_progress(count, count, already_done, 0, 0.001),
             last_conv_md,
             "\n".join(log_lines),
-            get_stats(conversations),
+            json.dumps(get_stats(conversations), indent=2, ensure_ascii=False),
             session_dir,
             _NO_FILES,
         )
@@ -173,7 +174,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
             _fmt_progress(total_so_far + 1, count, success, errors, elapsed),
             last_conv_md,
             "\n".join(log_lines),
-            get_stats(conversations),
+            json.dumps(get_stats(conversations), indent=2, ensure_ascii=False),
             session_dir,
             _NO_FILES,
         )
@@ -197,7 +198,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
         _fmt_progress(count, count, success, errors, elapsed),
         last_conv_md,
         "\n".join(log_lines),
-        get_stats(conversations),
+        json.dumps(get_stats(conversations), indent=2, ensure_ascii=False),
         session_dir,
         [paths["json"], paths["jsonl"], paths["log"]],
     )
@@ -283,7 +284,7 @@ def build_ui():
                     autoscroll=True,
                 )
 
-                stats_json = gr.JSON(label="📈 Statisztikák")
+                stats_json = gr.Textbox(label="📈 Statisztikák", interactive=False, lines=6)
                 files_out  = gr.Files(label="📥 Letölthető fájlok")
 
         # ── Wiring ─────────────────────────────────────────────────────────────
