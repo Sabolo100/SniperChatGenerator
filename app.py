@@ -287,12 +287,21 @@ def build_ui():
                 files_out  = gr.Files(label="📥 Letölthető fájlok")
 
         # ── Wiring ─────────────────────────────────────────────────────────────
-        provider_radio.change(update_models, provider_radio, model_dropdown)
+        # queue=False for simple (non-generator) handlers — avoids queue connection
+        # errors in Gradio 4.x while staying compatible with Gradio 6.x.
+        provider_radio.change(
+            update_models, provider_radio, model_dropdown, queue=False
+        )
 
         for comp in [model_dropdown, count_slider]:
-            comp.change(update_estimate, [model_dropdown, count_slider], estimate_md)
+            comp.change(
+                update_estimate, [model_dropdown, count_slider], estimate_md,
+                queue=False,
+            )
 
-        test_btn.click(test_api_key, [provider_radio, api_key_box], test_result)
+        test_btn.click(
+            test_api_key, [provider_radio, api_key_box], test_result, queue=False
+        )
 
         start_btn.click(
             fn=start_generation,
@@ -306,7 +315,7 @@ def build_ui():
             ],
         )
 
-        stop_btn.click(stop_generation, [], status_md)
+        stop_btn.click(stop_generation, [], status_md, queue=False)
 
     return demo
 
