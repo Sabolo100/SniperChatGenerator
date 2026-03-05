@@ -225,8 +225,11 @@ def build_ui():
                     value="openai",
                     label="🤖 AI Provider",
                 )
+                # Initialize with ALL provider models so Gradio 6.x schema
+                # validation accepts values from any provider on update.
+                _all_models = [m for ms in MODELS.values() for m in ms]
                 model_dropdown = gr.Dropdown(
-                    choices=MODELS["openai"],
+                    choices=_all_models,
                     value=MODELS["openai"][0],
                     label="📦 Modell",
                 )
