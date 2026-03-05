@@ -9,7 +9,7 @@ from prompts import GENERATOR_SYSTEM_PROMPT, random_prompt
 
 # ── Model lists ────────────────────────────────────────────────────────────────
 MODELS = {
-    "openai":    ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"],
+    "openai":    ["gpt-4o-mini", "gpt-4o"],
     "anthropic": ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
     "gemini":    ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
 }
@@ -18,7 +18,6 @@ MODELS = {
 COST_PER_1K = {
     "gpt-4o-mini":                  0.00015,
     "gpt-4o":                       0.005,
-    "gpt-4-turbo":                  0.01,
     "claude-3-5-haiku-20241022":    0.00025,
     "claude-3-5-sonnet-20241022":   0.003,
     "claude-3-opus-20240229":       0.015,
