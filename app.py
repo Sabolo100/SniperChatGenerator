@@ -333,4 +333,4 @@ def build_ui():
 if __name__ == "__main__":
     demo = build_ui()
     demo.queue()
-    demo.launch(server_name="0.0.0.0", inbrowser=True)
+    demo.launch(server_name="127.0.0.1", inbrowser=True)
