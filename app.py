@@ -1,7 +1,12 @@
 """
 Sniper AI Training Data Generator
-Gradio-based UI for generating fine-tuning data via OpenAI / Anthropic / Gemini.
-Run:  python app.py
+===================================
+Miért Gradio?
+  Gradio = Python-ból azonnal kész webUI + WebSocket queue + live streaming (yield) +
+  fájlletöltés. Ezeket Flask/FastAPI-val kézzel kellene felírni. Ha csak CLI kell,
+  a generator.py önállóan is hívható — Gradio nem kötelező.
+
+Indítás:  python app.py
 """
 
 import json
@@ -16,11 +21,15 @@ import gradio as gr
 from converter import get_stats, load_existing, save_results
 from generator import MODELS, estimate_cost, generate_one, validate_api_key
 
-# ── Global stop flag ───────────────────────────────────────────────────────────
+# ── Globális stop jelző ─────────────────────────────────────────────────────────
 _stop_event = threading.Event()
-_LOG_MAXLEN = 50
+_LOG_MAXLEN  = 50
+
+_DEFAULT_PROVIDER = "openai"
+_DEFAULT_MODEL    = MODELS[_DEFAULT_PROVIDER][0]
 
 
+# ── Segéd formázók ─────────────────────────────────────────────────────────────
 def _fmt_estimate(model: str, count: int) -> str:
     cost    = estimate_cost(model, count)
     minutes = round(count * 2 / 60, 1)
@@ -50,50 +59,55 @@ def _fmt_progress(done: int, total: int, success: int, errors: int,
     )
 
 
-# ── UI callbacks ───────────────────────────────────────────────────────────────
-def update_models(provider: str):
+# ══════════════════════════════════════════════════════════════════════════════
+#  PLATFORM / MODELL VÁLASZTÓ — eseménykezelők
+# ══════════════════════════════════════════════════════════════════════════════
+
+def on_provider_change(provider: str):
+    """
+    Platform (openai / anthropic / gemini) váltásakor frissíti a modellek listáját.
+    Visszaad egy gr.update()-et, ami lecseréli a Dropdown choices-át és értékét.
+    """
     choices = MODELS.get(provider, [])
-    value = choices[0] if choices else None
-    return gr.update(choices=choices, value=value)
+    if not choices:
+        return gr.update(choices=[], value=None)
+    return gr.update(choices=choices, value=choices[0])
 
 
-def update_estimate(model: str, count: int) -> str:
-    return _fmt_estimate(model, count) if model else ""
+def on_model_or_count_change(model: str, count: int) -> str:
+    """Modell vagy darabszám változásakor frissíti a becslést."""
+    if not model:
+        return ""
+    return _fmt_estimate(model, count)
 
 
-def test_api_key(provider: str, api_key: str) -> str:
+def on_test_key(provider: str, api_key: str) -> str:
+    """API kulcs ellenőrzése a kiválasztott platformon."""
     if not api_key or not api_key.strip():
-        return "❌ API kulcs nem adott meg!"
+        return "❌ Adj meg API kulcsot!"
     if not provider:
-        return "❌ Válassz providert!"
-    ok, msg = validate_api_key(provider, api_key)
-    return f"✅ Kapcsolat sikeres: {msg}" if ok else f"❌ Hiba: {msg}"
+        return "❌ Válassz platformot!"
+    ok, msg = validate_api_key(provider, api_key.strip())
+    return f"✅ Kapcsolat OK — {msg}" if ok else f"❌ Hiba: {msg}"
 
 
-# ── Generation ─────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+#  GENERÁLÁS
+# ══════════════════════════════════════════════════════════════════════════════
+
 def start_generation(provider, model, api_key, count, output_dir, resume_mode):
-    """
-    Generator — yields (status_md, progress_md, last_conv_md, log_str, stats_dict, session_str, files)
-    every time a conversation is generated.
-    NOTE: no gr.Progress() — its separate SSE stream conflicts with yielded outputs.
-    """
     global _stop_event
     _stop_event.clear()
 
     _NO_FILES = gr.update(value=None)
 
-    # Validation
     if not provider:
-        yield "❌ Válassz providert!", "", "", "", "", "", _NO_FILES
-        return
+        yield "❌ Válassz platformot!", "", "", "", "", "", _NO_FILES; return
     if not api_key or not api_key.strip():
-        yield "❌ API kulcs nem adott meg!", "", "", "", "", "", _NO_FILES
-        return
+        yield "❌ API kulcs hiányzik!", "", "", "", "", "", _NO_FILES; return
     if not model:
-        yield "❌ Válassz modellt!", "", "", "", "", "", _NO_FILES
-        return
+        yield "❌ Válassz modellt!", "", "", "", "", "", _NO_FILES; return
 
-    # Session folder
     base = Path(output_dir)
     if resume_mode:
         session_dir   = str(base)
@@ -117,7 +131,6 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
     consec_err = 0
     start_ts   = time.time()
 
-    # Initial update — show session path immediately
     yield (
         f"🚀 Generálás indul… | `{session_dir}`",
         _fmt_progress(already_done, count, 0, 0, 0.001),
@@ -142,7 +155,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
 
     for i in range(needed):
         if _stop_event.is_set():
-            log_lines.append("[STOP] Felhasználó leállította a generálást.")
+            log_lines.append("[STOP] Felhasználó leállította.")
             break
 
         total_so_far = already_done + i
@@ -150,27 +163,21 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
 
         if result:
             conversations.append(result)
-            success      += 1
-            consec_err    = 0
-            tema           = result.get("tema", "?")
-            log_lines.append(f"[OK] #{total_so_far + 1} — {tema}")
-            last_conv_md  = _fmt_last_conv(result)
+            success    += 1
+            consec_err  = 0
+            log_lines.append(f"[OK] #{total_so_far + 1} — {result.get('tema', '?')}")
+            last_conv_md = _fmt_last_conv(result)
         else:
             errors     += 1
             consec_err += 1
-            detail = f" — {err_msg}" if err_msg else ""
-            log_lines.append(f"[HIBA] #{total_so_far + 1}{detail}")
-            # last_conv_md intentionally NOT reset — keep last successful one visible
+            log_lines.append(f"[HIBA] #{total_so_far + 1} — {err_msg or ''}")
 
-        # Save every 10
         if (i + 1) % 10 == 0:
             save_results(conversations, session_dir)
 
-        elapsed     = time.time() - start_ts
-        status_text = f"Generálás folyamatban… | `{session_dir}`"
-
+        elapsed = time.time() - start_ts
         yield (
-            status_text,
+            f"Generálás… | `{session_dir}`",
             _fmt_progress(total_so_far + 1, count, success, errors, elapsed),
             last_conv_md,
             "\n".join(log_lines),
@@ -180,21 +187,15 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
         )
 
         if consec_err >= 10:
-            log_lines.append("[ABORT] 10 egymás utáni hiba — generálás leállítva.")
+            log_lines.append("[ABORT] 10 egymás utáni hiba — leállítva.")
             break
 
-    # Final save
     paths   = save_results(conversations, session_dir)
     elapsed = time.time() - start_ts
-
-    final_status = (
-        f"✅ Kész! **{len(conversations)}** párbeszéd mentve "
-        f"({elapsed:.0f}s alatt) | ❌ {errors} hiba"
-    )
-    log_lines.append(f"[DONE] Fájlok mentve: {session_dir}")
+    log_lines.append(f"[DONE] Mentve: {session_dir}")
 
     yield (
-        final_status,
+        f"✅ Kész! **{len(conversations)}** párbeszéd ({elapsed:.0f}s) | ❌ {errors} hiba",
         _fmt_progress(count, count, success, errors, elapsed),
         last_conv_md,
         "\n".join(log_lines),
@@ -209,123 +210,136 @@ def stop_generation():
     return "⏹️ Leállítás kérve…"
 
 
-# ── UI ─────────────────────────────────────────────────────────────────────────
-def build_ui():
-    CSS = """
-    /* Provider radio buttons — colour per option */
-    #provider_radio label:has(input[value="openai"]:checked) span {
-        background: #10a37f !important; color: #fff !important;
-        border-radius: 6px; padding: 2px 10px;
-    }
-    #provider_radio label:has(input[value="anthropic"]:checked) span {
-        background: #d97706 !important; color: #fff !important;
-        border-radius: 6px; padding: 2px 10px;
-    }
-    #provider_radio label:has(input[value="gemini"]:checked) span {
-        background: #4285f4 !important; color: #fff !important;
-        border-radius: 6px; padding: 2px 10px;
-    }
-    #provider_radio span { transition: background 0.15s, color 0.15s; }
-    """
+# ══════════════════════════════════════════════════════════════════════════════
+#  UI FELÉPÍTÉS
+# ══════════════════════════════════════════════════════════════════════════════
 
-    with gr.Blocks(title="🎯 Sniper AI Training Data Generator", css=CSS) as demo:
+def build_ui():
+    with gr.Blocks(title="Sniper AI Training Data Generator") as demo:
 
         gr.Markdown(
             "# 🎯 Sniper AI Training Data Generator\n"
-            "Generálj fine-tuning adatot a sniper kiképző AI modellhez"
+            "Fine-tuning adat generátor — OpenAI · Anthropic · Gemini"
         )
 
         with gr.Row():
-            # ── Left: configuration ───────────────────────────────────────────
+
+            # ── Bal oldal: konfiguráció ────────────────────────────────────────
             with gr.Column(scale=1):
-                provider_radio = gr.Radio(
-                    choices=["openai", "anthropic", "gemini"],
-                    value="anthropic",
-                    label="🤖 AI Provider",
-                    elem_id="provider_radio",
+
+                # ── 1. Platform ────────────────────────────────────────────────
+                provider_dd = gr.Dropdown(
+                    choices=list(MODELS.keys()),   # ["openai", "anthropic", "gemini"]
+                    value=_DEFAULT_PROVIDER,
+                    label="🌐 Platform",
                 )
-                model_dropdown = gr.Dropdown(
-                    choices=MODELS["anthropic"],
-                    value=MODELS["anthropic"][0],
-                    label="📦 Modell",
+
+                # ── 2. Modell (a platform alapján frissül) ─────────────────────
+                model_dd = gr.Dropdown(
+                    choices=MODELS[_DEFAULT_PROVIDER],
+                    value=_DEFAULT_MODEL,
+                    label="🤖 Modell",
                 )
+
+                # ── 3. API kulcs ───────────────────────────────────────────────
                 api_key_box = gr.Textbox(
                     type="password",
                     label="🔑 API Kulcs",
-                    placeholder="sk-... vagy hasonló",
+                    placeholder="OpenAI: sk-...   Anthropic: sk-ant-...   Gemini: AIza...",
                 )
-                test_btn    = gr.Button("🔍 API Kulcs Tesztelése")
-                test_result = gr.Textbox(label="API teszt eredménye", interactive=False)
 
+                # ── 4. API kulcs ellenőrzés ────────────────────────────────────
+                test_btn = gr.Button("🔍 API Kulcs Ellenőrzése", variant="secondary")
+                test_out = gr.Textbox(label="Ellenőrzés eredménye", interactive=False)
+
+                gr.Markdown("---")
+
+                # ── 5. Generálási beállítások ──────────────────────────────────
                 count_slider = gr.Slider(
                     minimum=50, maximum=2000, step=50, value=500,
                     label="📊 Generálandó párbeszédek száma",
                 )
                 output_dir_box = gr.Textbox(
                     value="./training_data",
-                    label="💾 Alap kimeneti mappa (minden session külön almappába kerül)",
+                    label="💾 Kimeneti mappa (session alkönyvtárak ide kerülnek)",
                 )
-                resume_checkbox = gr.Checkbox(
+                resume_cb = gr.Checkbox(
                     value=False,
-                    label="▶️ Folytatás — meglévő session folytatása a fenti mappából",
+                    label="▶️ Folytatás — meglévő session betöltése a fenti mappából",
                 )
-                estimate_md = gr.Markdown(_fmt_estimate(MODELS["anthropic"][0], 500))
+                estimate_md = gr.Markdown(_fmt_estimate(_DEFAULT_MODEL, 500))
 
-            # ── Right: run & live output ──────────────────────────────────────
+            # ── Jobb oldal: futtatás + élő kimenet ───────────────────────────
             with gr.Column(scale=1):
+
                 with gr.Row():
                     start_btn = gr.Button("🚀 Generálás Indítása", variant="primary")
                     stop_btn  = gr.Button("⏹️ Megállítás", variant="stop")
 
-                status_md = gr.Markdown("_Kész az indításra…_")
+                status_md    = gr.Markdown("_Kész az indításra…_")
+                progress_md  = gr.Markdown("")
 
-                progress_md = gr.Markdown("")
-
-                session_path_box = gr.Textbox(
+                session_path = gr.Textbox(
                     label="📁 Aktuális session mappa",
                     interactive=False,
                     placeholder="Indítás után jelenik meg…",
                 )
-
                 last_conv_md = gr.Markdown(
                     "_Az utolsó generált párbeszéd itt jelenik meg…_",
                     label="💬 Utolsó generált párbeszéd",
                 )
-
                 log_box = gr.Textbox(
                     label="📋 Napló (utolsó 50 sor)",
                     lines=8,
                     interactive=False,
                     autoscroll=True,
                 )
+                stats_box = gr.Textbox(
+                    label="📈 Statisztikák",
+                    interactive=False,
+                    lines=6,
+                )
+                files_out = gr.Files(label="📥 Letölthető fájlok")
 
-                stats_json = gr.Textbox(label="📈 Statisztikák", interactive=False, lines=6)
-                files_out  = gr.Files(label="📥 Letölthető fájlok")
+        # ── Esemény-bekötések ──────────────────────────────────────────────────
 
-        # ── Wiring ─────────────────────────────────────────────────────────────
-        # All lightweight events go through the queue (no queue=False) to avoid
-        # the Gradio 4.28 HTTP-vs-WebSocket "No API found" conflict.
-        provider_radio.change(update_models, provider_radio, model_dropdown)
-
-        for comp in [model_dropdown, count_slider]:
-            comp.change(update_estimate, [model_dropdown, count_slider], estimate_md)
-
-        # test_btn: the ONLY place where a real API call is made.
-        test_btn.click(test_api_key, [provider_radio, api_key_box], test_result)
-
-        start_btn.click(
-            fn=start_generation,
-            inputs=[
-                provider_radio, model_dropdown, api_key_box,
-                count_slider, output_dir_box, resume_checkbox,
-            ],
-            outputs=[
-                status_md, progress_md, last_conv_md,
-                log_box, stats_json, session_path_box, files_out,
-            ],
+        # Platform váltás → modell lista frissítése
+        provider_dd.change(
+            fn=on_provider_change,
+            inputs=provider_dd,
+            outputs=model_dd,
         )
 
-        stop_btn.click(stop_generation, [], status_md, queue=False)
+        # Modell vagy darabszám változás → becslés frissítése
+        model_dd.change(
+            fn=on_model_or_count_change,
+            inputs=[model_dd, count_slider],
+            outputs=estimate_md,
+        )
+        count_slider.change(
+            fn=on_model_or_count_change,
+            inputs=[model_dd, count_slider],
+            outputs=estimate_md,
+        )
+
+        # API kulcs ellenőrzés gomb
+        test_btn.click(
+            fn=on_test_key,
+            inputs=[provider_dd, api_key_box],
+            outputs=test_out,
+        )
+
+        # Generálás indítása
+        start_btn.click(
+            fn=start_generation,
+            inputs=[provider_dd, model_dd, api_key_box, count_slider,
+                    output_dir_box, resume_cb],
+            outputs=[status_md, progress_md, last_conv_md,
+                     log_box, stats_box, session_path, files_out],
+        )
+
+        # Megállítás (bypass queue → azonnali)
+        stop_btn.click(fn=stop_generation, inputs=[], outputs=status_md, queue=False)
 
     return demo
 
