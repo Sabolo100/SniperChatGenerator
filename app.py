@@ -211,7 +211,24 @@ def stop_generation():
 
 # ── UI ─────────────────────────────────────────────────────────────────────────
 def build_ui():
-    with gr.Blocks(title="🎯 Sniper AI Training Data Generator") as demo:
+    CSS = """
+    /* Provider radio buttons — colour per option */
+    #provider_radio label:has(input[value="openai"]:checked) span {
+        background: #10a37f !important; color: #fff !important;
+        border-radius: 6px; padding: 2px 10px;
+    }
+    #provider_radio label:has(input[value="anthropic"]:checked) span {
+        background: #d97706 !important; color: #fff !important;
+        border-radius: 6px; padding: 2px 10px;
+    }
+    #provider_radio label:has(input[value="gemini"]:checked) span {
+        background: #4285f4 !important; color: #fff !important;
+        border-radius: 6px; padding: 2px 10px;
+    }
+    #provider_radio span { transition: background 0.15s, color 0.15s; }
+    """
+
+    with gr.Blocks(title="🎯 Sniper AI Training Data Generator", css=CSS) as demo:
 
         gr.Markdown(
             "# 🎯 Sniper AI Training Data Generator\n"
@@ -223,12 +240,13 @@ def build_ui():
             with gr.Column(scale=1):
                 provider_radio = gr.Radio(
                     choices=["openai", "anthropic", "gemini"],
-                    value="openai",
+                    value="anthropic",
                     label="🤖 AI Provider",
+                    elem_id="provider_radio",
                 )
                 model_dropdown = gr.Dropdown(
-                    choices=MODELS["openai"],
-                    value=MODELS["openai"][0],
+                    choices=MODELS["anthropic"],
+                    value=MODELS["anthropic"][0],
                     label="📦 Modell",
                 )
                 api_key_box = gr.Textbox(
@@ -251,7 +269,7 @@ def build_ui():
                     value=False,
                     label="▶️ Folytatás — meglévő session folytatása a fenti mappából",
                 )
-                estimate_md = gr.Markdown(_fmt_estimate(MODELS["openai"][0], 500))
+                estimate_md = gr.Markdown(_fmt_estimate(MODELS["anthropic"][0], 500))
 
             # ── Right: run & live output ──────────────────────────────────────
             with gr.Column(scale=1):
