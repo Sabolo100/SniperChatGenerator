@@ -99,7 +99,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
     global _stop_event
     _stop_event.clear()
 
-    _NO_FILES = gr.update(value=None)
+    _NO_FILES = ""
 
     if not provider:
         yield "❌ Válassz platformot!", "", "", "", "", "", _NO_FILES; return
@@ -201,7 +201,7 @@ def start_generation(provider, model, api_key, count, output_dir, resume_mode):
         "\n".join(log_lines),
         json.dumps(get_stats(conversations), indent=2, ensure_ascii=False),
         session_dir,
-        [paths["json"], paths["jsonl"], paths["log"]],
+        "\n".join([paths["json"], paths["jsonl"], paths["log"]]),
     )
 
 
@@ -299,7 +299,11 @@ def build_ui():
                     interactive=False,
                     lines=6,
                 )
-                files_out = gr.Files(label="📥 Letölthető fájlok")
+                files_out = gr.Textbox(
+                    label="📁 Mentett fájlok elérési útjai",
+                    interactive=False,
+                    lines=3,
+                )
 
         # ── Esemény-bekötések ──────────────────────────────────────────────────
 
