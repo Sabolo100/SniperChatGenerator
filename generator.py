@@ -9,21 +9,21 @@ from prompts import GENERATOR_SYSTEM_PROMPT, random_prompt
 
 # ── Model lists ────────────────────────────────────────────────────────────────
 MODELS = {
-    "openai":    ["gpt-4o-mini", "gpt-4o"],
-    "anthropic": ["claude-3-5-haiku-20241022", "claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
-    "gemini":    ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+    "openai":    ["gpt-4.1-mini", "gpt-4.1", "gpt-4.5-preview"],
+    "anthropic": ["claude-opus-4-0", "claude-sonnet-4-0"],
+    "gemini":    ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"],
 }
 
 # ── Cost table (USD per 1 000 tokens, rough estimates) ─────────────────────────
 COST_PER_1K = {
-    "gpt-4o-mini":                  0.00015,
-    "gpt-4o":                       0.005,
-    "claude-3-5-haiku-20241022":    0.00025,
-    "claude-3-5-sonnet-20241022":   0.003,
-    "claude-3-opus-20240229":       0.015,
-    "gemini-1.5-flash":             0.000075,
-    "gemini-1.5-pro":               0.00125,
-    "gemini-2.0-flash":             0.0001,
+    "gpt-4.1-mini":       0.00015,
+    "gpt-4.1":            0.002,
+    "gpt-4.5-preview":    0.0075,
+    "claude-opus-4-0":    0.015,
+    "claude-sonnet-4-0":  0.003,
+    "gemini-2.5-flash":   0.000075,
+    "gemini-2.5-pro":     0.00125,
+    "gemini-2.0-flash":   0.0001,
 }
 
 _AVG_TOKENS_PER_CONV = 300  # rough estimate for cost calculation
@@ -100,7 +100,7 @@ def validate_api_key(provider: str, api_key: str) -> tuple[bool, str]:
         if provider == "anthropic":
             client = get_client("anthropic", api_key)
             client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-sonnet-4-0",
                 max_tokens=10,
                 messages=[{"role": "user", "content": "Hi"}],
             )
