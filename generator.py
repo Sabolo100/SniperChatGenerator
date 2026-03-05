@@ -39,7 +39,7 @@ def estimate_cost(model_name: str, count: int) -> float:
 _INSTALL_HINTS = {
     "openai":    "pip install openai",
     "anthropic": "pip install anthropic",
-    "gemini":    "pip install google-genai",
+    "gemini":    "pip install google-generativeai",
 }
 
 
@@ -51,7 +51,7 @@ def _check_package(provider: str) -> tuple[bool, str]:
         elif provider == "anthropic":
             import anthropic  # noqa: F401
         elif provider == "gemini":
-            from google import genai  # noqa: F401
+            import google.generativeai  # noqa: F401
         else:
             return False, f"Ismeretlen provider: {provider}"
         return True, ""
@@ -79,8 +79,9 @@ def get_client(provider: str, api_key: str):
         return anthropic.Anthropic(api_key=api_key)
 
     if provider == "gemini":
-        from google import genai
-        return genai.Client(api_key=api_key)
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        return genai  # module acts as the configured client
 
     raise ValueError(f"Ismeretlen provider: {provider}")
 
@@ -107,9 +108,9 @@ def validate_api_key(provider: str, api_key: str) -> tuple[bool, str]:
             return True, "OK"
 
         if provider == "gemini":
-            from google import genai
-            client = genai.Client(api_key=api_key)
-            list(client.models.list())
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            list(genai.list_models())
             return True, "OK"
 
         return False, f"Ismeretlen provider: {provider}"
@@ -231,18 +232,17 @@ def _call_anthropic(api_key: str, model_name: str, prompt: str) -> str:
 
 
 def _call_gemini(api_key: str, model_name: str, prompt: str) -> str:
-    from google import genai
-    from google.genai import types
-    client = genai.Client(api_key=api_key)
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
 
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            system_instruction=GENERATOR_SYSTEM_PROMPT,
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        system_instruction=GENERATOR_SYSTEM_PROMPT,
+        generation_config=genai.types.GenerationConfig(
             response_mime_type="application/json",
             max_output_tokens=400,
             temperature=0.85,
         ),
     )
+    response = model.generate_content(prompt)
     return response.text or ""
