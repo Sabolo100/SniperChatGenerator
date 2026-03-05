@@ -52,7 +52,8 @@ def _fmt_progress(done: int, total: int, success: int, errors: int,
 # ── UI callbacks ───────────────────────────────────────────────────────────────
 def update_models(provider: str):
     choices = MODELS.get(provider, [])
-    return gr.update(choices=choices, value=choices[0] if choices else None)
+    value = choices[0] if choices else None
+    return gr.Dropdown(choices=choices, value=value)
 
 
 def update_estimate(model: str, count: int) -> str:
@@ -308,4 +309,6 @@ def build_ui():
 
 
 if __name__ == "__main__":
-    build_ui().launch(server_name="0.0.0.0", inbrowser=True)
+    demo = build_ui()
+    demo.queue()
+    demo.launch(server_name="0.0.0.0", inbrowser=True)
