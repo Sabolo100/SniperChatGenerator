@@ -61,13 +61,16 @@ def update_estimate(model: str, count: int) -> str:
     return _fmt_estimate(model, count) if model else ""
 
 
-def test_api_key(provider: str, api_key: str) -> str:
+def test_api_key(provider: str, api_key: str):
+    choices = MODELS.get(provider, [])
+    model_update = gr.update(choices=choices, value=choices[0] if choices else None)
     if not api_key or not api_key.strip():
-        return "❌ API kulcs nem adott meg!"
+        return "❌ API kulcs nem adott meg!", model_update
     if not provider:
-        return "❌ Válassz providert!"
+        return "❌ Válassz providert!", model_update
     ok, msg = validate_api_key(provider, api_key)
-    return f"✅ Kapcsolat sikeres: {msg}" if ok else f"❌ Hiba: {msg}"
+    result = f"✅ Kapcsolat sikeres: {msg}" if ok else f"❌ Hiba: {msg}"
+    return result, model_update
 
 
 # ── Generation ─────────────────────────────────────────────────────────────────
@@ -226,11 +229,8 @@ def build_ui():
                     value="openai",
                     label="🤖 AI Provider",
                 )
-                # Initialize with ALL provider models so Gradio 6.x schema
-                # validation accepts values from any provider on update.
-                _all_models = [m for ms in MODELS.values() for m in ms]
                 model_dropdown = gr.Dropdown(
-                    choices=_all_models,
+                    choices=MODELS["openai"],
                     value=MODELS["openai"][0],
                     label="📦 Modell",
                 )
@@ -288,12 +288,9 @@ def build_ui():
                 files_out  = gr.Files(label="📥 Letölthető fájlok")
 
         # ── Wiring ─────────────────────────────────────────────────────────────
-        # queue=False for simple (non-generator) handlers — avoids queue connection
-        # errors in Gradio 4.x while staying compatible with Gradio 6.x.
-        provider_radio.change(
-            update_models, provider_radio, model_dropdown, queue=False
-        )
-
+        # No provider_radio.change handler — clicking the radio just stores the
+        # value client-side; model list refreshes only when the user explicitly
+        # clicks "API Kulcs Tesztelése".
         for comp in [model_dropdown, count_slider]:
             comp.change(
                 update_estimate, [model_dropdown, count_slider], estimate_md,
@@ -301,7 +298,8 @@ def build_ui():
             )
 
         test_btn.click(
-            test_api_key, [provider_radio, api_key_box], test_result, queue=False
+            test_api_key, [provider_radio, api_key_box],
+            [test_result, model_dropdown], queue=False
         )
 
         start_btn.click(
