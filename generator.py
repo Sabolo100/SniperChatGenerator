@@ -51,9 +51,8 @@ def get_client(provider: str, api_key: str):
         return anthropic.Anthropic(api_key=api_key)
 
     if provider == "gemini":
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        return genai  # the module itself acts as the "client"
+        from google import genai
+        return genai.Client(api_key=api_key)
 
     raise ValueError(f"Ismeretlen provider: {provider}")
 
@@ -80,9 +79,9 @@ def validate_api_key(provider: str, api_key: str) -> tuple[bool, str]:
             return True, "OK"
 
         if provider == "gemini":
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            list(genai.list_models())
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            list(client.models.list())
             return True, "OK"
 
         return False, f"Ismeretlen provider: {provider}"
@@ -199,17 +198,18 @@ def _call_anthropic(api_key: str, model_name: str, prompt: str) -> str:
 
 
 def _call_gemini(api_key: str, model_name: str, prompt: str) -> str:
-    import google.generativeai as genai
-    genai.configure(api_key=api_key)
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=api_key)
 
-    model = genai.GenerativeModel(
-        model_name,
-        generation_config=genai.GenerationConfig(
+    response = client.models.generate_content(
+        model=model_name,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=GENERATOR_SYSTEM_PROMPT,
             response_mime_type="application/json",
             max_output_tokens=400,
             temperature=0.85,
         ),
-        system_instruction=GENERATOR_SYSTEM_PROMPT,
     )
-    response = model.generate_content(prompt)
     return response.text or ""
