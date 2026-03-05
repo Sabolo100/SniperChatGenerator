@@ -303,22 +303,15 @@ def build_ui():
                 files_out  = gr.Files(label="📥 Letölthető fájlok")
 
         # ── Wiring ─────────────────────────────────────────────────────────────
-        # provider_radio.change: only updates the model dropdown (no API call).
-        # queue=False keeps it out of the WebSocket queue — direct /run/predict.
-        provider_radio.change(
-            update_models, provider_radio, model_dropdown, queue=False
-        )
+        # All lightweight events go through the queue (no queue=False) to avoid
+        # the Gradio 4.28 HTTP-vs-WebSocket "No API found" conflict.
+        provider_radio.change(update_models, provider_radio, model_dropdown)
 
         for comp in [model_dropdown, count_slider]:
-            comp.change(
-                update_estimate, [model_dropdown, count_slider], estimate_md,
-                queue=False,
-            )
+            comp.change(update_estimate, [model_dropdown, count_slider], estimate_md)
 
         # test_btn: the ONLY place where a real API call is made.
-        test_btn.click(
-            test_api_key, [provider_radio, api_key_box], test_result, queue=False
-        )
+        test_btn.click(test_api_key, [provider_radio, api_key_box], test_result)
 
         start_btn.click(
             fn=start_generation,
