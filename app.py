@@ -207,79 +207,310 @@ def stop_generation():
 
 
 # ── UI ─────────────────────────────────────────────────────────────────────────
+
+CUSTOM_CSS = """
+/* Vibráns, színes téma */
+.gradio-container {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+    min-height: 100vh;
+}
+
+/* Főcím stílus */
+.gradio-container h1 {
+    background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    font-size: 2.5rem !important;
+    text-align: center !important;
+    text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { filter: drop-shadow(0 0 5px #ff6b6b); }
+    to { filter: drop-shadow(0 0 20px #54a0ff); }
+}
+
+/* Panel és box stílusok */
+.gr-box, .gr-panel, .gr-form {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 16px !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Input mezők */
+input, textarea, .gr-input {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid #48dbfb !important;
+    color: #fff !important;
+    border-radius: 12px !important;
+    transition: all 0.3s ease !important;
+}
+
+input:focus, textarea:focus {
+    border-color: #ff6b6b !important;
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.4) !important;
+}
+
+/* Dropdown */
+.gr-dropdown {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid #feca57 !important;
+    border-radius: 12px !important;
+}
+
+/* Slider */
+input[type="range"] {
+    accent-color: #ff9ff3 !important;
+}
+
+.gr-slider input {
+    background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb) !important;
+}
+
+/* Gombok */
+.gr-button {
+    border-radius: 12px !important;
+    font-weight: bold !important;
+    transition: all 0.3s ease !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+}
+
+.gr-button-primary {
+    background: linear-gradient(135deg, #00d2d3 0%, #54a0ff 50%, #5f27cd 100%) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 20px rgba(84, 160, 255, 0.4) !important;
+}
+
+.gr-button-primary:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 30px rgba(84, 160, 255, 0.6) !important;
+}
+
+.gr-button-stop, button[variant="stop"] {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4) !important;
+}
+
+.gr-button-stop:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 30px rgba(255, 107, 107, 0.6) !important;
+}
+
+/* Másodlagos gomb */
+.gr-button-secondary {
+    background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%) !important;
+    border: none !important;
+    color: #1a1a2e !important;
+}
+
+/* Radio és Checkbox */
+.gr-radio label, .gr-checkbox label {
+    color: #fff !important;
+}
+
+.gr-radio input:checked + span::before {
+    background: linear-gradient(135deg, #ff6b6b, #ff9ff3) !important;
+}
+
+/* Címkék */
+label {
+    color: #48dbfb !important;
+    font-weight: 600 !important;
+    text-shadow: 0 0 10px rgba(72, 219, 251, 0.3) !important;
+}
+
+/* Markdown szövegek */
+.markdown-text, .gr-markdown {
+    color: #e8e8e8 !important;
+}
+
+.gr-markdown strong {
+    color: #feca57 !important;
+}
+
+.gr-markdown code {
+    background: rgba(255, 107, 107, 0.2) !important;
+    color: #ff6b6b !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+}
+
+/* JSON megjelenítő */
+.gr-json {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 2px solid #54a0ff !important;
+    border-radius: 12px !important;
+}
+
+/* Fájl lista */
+.gr-file {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 2px dashed #ff9ff3 !important;
+    border-radius: 12px !important;
+}
+
+/* Row és Column */
+.gr-row {
+    gap: 24px !important;
+}
+
+.gr-column {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-radius: 20px !important;
+    padding: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Alcímek és szövegek */
+p, span {
+    color: #c8d6e5 !important;
+}
+
+/* Scrollbar stílus */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #ff6b6b, #54a0ff);
+    border-radius: 4px;
+}
+
+/* Textbox stílusok */
+.gr-textbox textarea {
+    background: rgba(0, 0, 0, 0.3) !important;
+    color: #1dd1a1 !important;
+    font-family: 'Fira Code', monospace !important;
+    border: 2px solid #1dd1a1 !important;
+}
+
+/* Progress/status text */
+.status-text {
+    color: #48dbfb !important;
+}
+
+/* Hover effektek az input elemekre */
+.gr-box:hover {
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Tooltip stílus */
+.gr-tooltip {
+    background: #1a1a2e !important;
+    border: 1px solid #54a0ff !important;
+    color: #fff !important;
+}
+"""
+
 def build_ui():
-    with gr.Blocks(title="🎯 Sniper AI Training Data Generator") as demo:
+    with gr.Blocks(title="🎯 Sniper AI Training Data Generator", css=CUSTOM_CSS, theme=gr.themes.Soft(
+        primary_hue=gr.themes.colors.cyan,
+        secondary_hue=gr.themes.colors.pink,
+        neutral_hue=gr.themes.colors.slate,
+    )) as demo:
 
         gr.Markdown(
-            "# 🎯 Sniper AI Training Data Generator\n"
-            "Generálj fine-tuning adatot a sniper kiképző AI modellhez"
+            "# 🎯 Sniper AI Training Data Generator\n\n"
+            "### ✨ Generálj fine-tuning adatot a sniper kiképző AI modellhez ✨"
         )
 
         with gr.Row():
             # ── Left: configuration ───────────────────────────────────────────
             with gr.Column(scale=1):
+                gr.Markdown("### 🎨 Konfiguráció")
                 provider_radio = gr.Radio(
                     choices=["openai", "anthropic", "gemini"],
                     value="openai",
                     label="🤖 AI Provider",
+                    info="Válaszd ki a szolgáltatót",
                 )
                 model_dropdown = gr.Dropdown(
                     choices=MODELS["openai"],
                     value=MODELS["openai"][0],
                     label="📦 Modell",
+                    info="A generáláshoz használt modell",
                 )
                 api_key_box = gr.Textbox(
                     type="password",
                     label="🔑 API Kulcs",
                     placeholder="sk-... vagy hasonló",
+                    info="A kiválasztott provider API kulcsa",
                 )
-                test_btn    = gr.Button("🔍 API Kulcs Tesztelése")
-                test_result = gr.Textbox(label="API teszt eredménye", interactive=False)
+                test_btn    = gr.Button("🔍 API Kulcs Tesztelése", variant="secondary")
+                test_result = gr.Textbox(label="🧪 API teszt eredménye", interactive=False)
 
+                gr.Markdown("---")
+                gr.Markdown("### ⚙️ Beállítások")
                 count_slider = gr.Slider(
                     minimum=50, maximum=2000, step=50, value=500,
                     label="📊 Generálandó párbeszédek száma",
+                    info="Több = hosszabb idő, több adat",
                 )
                 output_dir_box = gr.Textbox(
                     value="./training_data",
-                    label="💾 Alap kimeneti mappa (minden session külön almappába kerül)",
+                    label="💾 Kimeneti mappa",
+                    info="Minden session külön almappába kerül",
                 )
                 resume_checkbox = gr.Checkbox(
                     value=False,
-                    label="▶️ Folytatás — meglévő session folytatása a fenti mappából",
+                    label="▶️ Folytatás — meglévő session folytatása",
                 )
+                gr.Markdown("---")
                 estimate_md = gr.Markdown(_fmt_estimate(MODELS["openai"][0], 500))
 
             # ── Right: run & live output ──────────────────────────────────────
             with gr.Column(scale=1):
+                gr.Markdown("### 🚀 Vezérlés")
                 with gr.Row():
-                    start_btn = gr.Button("🚀 Generálás Indítása", variant="primary")
-                    stop_btn  = gr.Button("⏹️ Megállítás", variant="stop")
+                    start_btn = gr.Button("🚀 Generálás Indítása", variant="primary", size="lg")
+                    stop_btn  = gr.Button("⏹️ Megállítás", variant="stop", size="lg")
 
-                status_md = gr.Markdown("_Kész az indításra…_")
-
+                gr.Markdown("---")
+                gr.Markdown("### 📊 Állapot")
+                status_md = gr.Markdown("_✨ Kész az indításra…_")
                 progress_md = gr.Markdown("")
 
                 session_path_box = gr.Textbox(
                     label="📁 Aktuális session mappa",
                     interactive=False,
-                    placeholder="Indítás után jelenik meg…",
+                    placeholder="🔄 Indítás után jelenik meg…",
                 )
 
+                gr.Markdown("---")
+                gr.Markdown("### 💬 Utolsó Generált Párbeszéd")
                 last_conv_md = gr.Markdown(
-                    "_Az utolsó generált párbeszéd itt jelenik meg…_",
-                    label="💬 Utolsó generált párbeszéd",
+                    "_🎯 Az utolsó generált párbeszéd itt jelenik meg…_",
                 )
 
+                gr.Markdown("---")
+                gr.Markdown("### 📋 Napló")
                 log_box = gr.Textbox(
-                    label="📋 Napló (utolsó 50 sor)",
+                    label="📜 Események (utolsó 50 sor)",
                     lines=8,
                     interactive=False,
                     autoscroll=True,
                 )
 
-                stats_json = gr.JSON(label="📈 Statisztikák")
-                files_out  = gr.Files(label="📥 Letölthető fájlok")
+                gr.Markdown("---")
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        stats_json = gr.JSON(label="📈 Statisztikák")
+                    with gr.Column(scale=1):
+                        files_out  = gr.Files(label="📥 Letölthető fájlok")
 
         # ── Wiring ─────────────────────────────────────────────────────────────
         provider_radio.change(update_models, provider_radio, model_dropdown)
